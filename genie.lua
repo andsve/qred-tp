@@ -74,6 +74,8 @@ solution "qred_tp"
         "-rdynamic"
       }
 
+      links { "m" }
+
     end
 
     configuration "Debug"
