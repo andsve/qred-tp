@@ -140,7 +140,7 @@ void generate_atlas_image()
     output_data = (uint8_t*)malloc(s*4*sizeof(uint8_t));
 
     // clear to transparent
-    for (int p = 0; p < s; p+=1)
+    for (uint64_t p = 0; p < s; p+=1)
     {
         output_data[p*4+0] = 0;
         output_data[p*4+1] = 0;
@@ -164,7 +164,34 @@ void generate_atlas_image()
     }
 }
 
-bool write_atlas_to_disk(const char* output_filepath)
+bool write_atlas_meta_to_disk(const char* output_filepath)
+{
+    printf("Writing meta data...\n");
+    bool r = true;
+    FILE *fmeta = fopen("meta.txt", "w");
+
+    float ow = (float)output_width;
+    float oh = (float)output_height;
+
+    int c = sb_count(image_entries);
+    for (int i = 0; i < c; ++i)
+    {
+        stbrp_rect& image_rect = image_rects[i];
+        image_entry_t& image_entry = image_entries[image_rect.id];
+        // printf("%d: %s [%d,%d] %s\n", image_rect.id, image_entry.filename, image_rect.x, image_rect.y, image_rect.was_packed ? "" : "[NOT PACKED!]");
+        float u0 = (float)image_rect.x / ow;
+        float v0 = (float)(output_height - image_rect.y) / oh;
+        float u1 = (float)(image_rect.x + image_rect.w) / ow;
+        float v1 = (float)(output_height - image_rect.y - image_rect.h) / oh;
+        fprintf(fmeta, "%s: %f %f %f %f\n", image_entry.filename, u0, v0, u1, v1);
+    }
+
+// meta_close_and_exit:
+    fclose(fmeta);
+    return r;
+}
+
+bool write_atlas_image_to_disk(const char* output_filepath)
 {
     printf("Writing output file: %s\n", output_filepath);
     int r = stbi_write_png(output_filepath, output_width, output_height, 4, output_data, output_width*4);
@@ -263,7 +290,8 @@ show_help_and_exit:
 
     generate_atlas_image();
 
-    write_atlas_to_disk(ouput_file_path);
+    write_atlas_image_to_disk(ouput_file_path);
+    write_atlas_meta_to_disk("meta.txt");
 
     return 0;
 }
