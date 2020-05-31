@@ -1,0 +1,47 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Checkout submodules
+      run: git submodule init && git submodule update --init --recursive
+    - name: Building...
+      run: |
+        $ErrorView = 'NormalView'
+        bash ./quick-build.sh
+    - name: Uploading artifact...
+      uses: actions/upload-artifact@v2
+      with:
+        name: qred_tp_windows
+        path: bin/qred_tp.exe
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Checkout submodules
+      run: git submodule init && git submodule update --init --recursive
+    - name: Building...
+      run: ./quick-build.sh
+    - name: Uploading artifact...
+      uses: actions/upload-artifact@v2
+      with:
+        name: qred_tp_macos
+        path: bin/qred_tp
+  build-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Checkout submodules
+      run: git submodule init && git submodule update --init --recursive
+    - name: Building...
+      run: |
+        ./quick-build.sh
+    - name: Uploading artifact...
+      uses: actions/upload-artifact@v2
+      with:
+        name: qred_tp_ubuntu
+        path: bin/qred_tp
