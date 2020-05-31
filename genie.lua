@@ -25,7 +25,7 @@ solution "qred_tp"
   project "qred_tp"
     language "C"
     files {
-      "src/parg.c",
+      "src/parg.cpp",
       "src/main.cpp",
     }
 
