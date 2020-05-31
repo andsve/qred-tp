@@ -26,12 +26,13 @@ solution "qred_tp"
     language "C"
     files {
       "src/parg.cpp",
+      "third-party/xxHash/xxhash.c",
       "src/main.cpp",
     }
 
     includedirs {
       "third-party/stb/",
-      -- "third-party/sokol/util",
+      "third-party/xxHash/",
       -- "third-party/LuaJIT/src/",
       -- "third-party/Handmade-Math/",
     }

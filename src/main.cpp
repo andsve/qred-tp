@@ -15,7 +15,11 @@
 
 #include <stretchy_buffer.h>
 
+#include <xxhash.h>
+
 #include "parg.h"
+
+// #include "../asd.h"
 
 struct image_entry_t
 {
@@ -30,6 +34,8 @@ struct image_entry_t
 static int output_width = 512;
 static int output_height = 512;
 static uint8_t* output_data = NULL;
+static uint8_t* output_data_compressed = NULL;
+static int output_data_compressed_size = 0;
 
 static image_entry_t* image_entries = NULL;
 static stbrp_rect* image_rects = NULL;
@@ -204,6 +210,83 @@ bool write_atlas_image_to_disk(const char* output_filepath)
     return r != 0;
 }
 
+void store_header_image_data(void *context, void *data, int size)
+{
+    output_data_compressed = (uint8_t*)malloc(size);
+    memcpy(output_data_compressed, data, size);
+    output_data_compressed_size = size;
+}
+
+XXH64_hash_t XXH64str(const char* str)
+{
+    return XXH64(str, strlen(str), 0);
+}
+
+XXH32_hash_t XXH32str(const char* str)
+{
+    return XXH32(str, strlen(str), 0);
+}
+
+bool write_atlas_to_header(const char* output_filepath)
+{
+    printf("Compressing image data...\n");
+    int r = stbi_write_png_to_func(store_header_image_data, NULL, output_width, output_height, 4, output_data, output_width*4);
+    if (r != 0) {
+        printf("Success!\n");
+
+
+        printf("Writing output file: %s\n", output_filepath);
+        FILE *fheader = fopen(output_filepath, "w");
+        fprintf(fheader, "#pragma once\n");
+
+        // write png data blob
+        fprintf(fheader, "const char atlas_image_data[] = {\n");
+        for (int i = 0; i < output_data_compressed_size; ++i)
+        {
+            fprintf(fheader, "0x%02x%s%s", output_data_compressed[i], i != output_data_compressed_size-1 ? "," : "", i % 16 == 15 ? "\n" : " ");
+        }
+        fprintf(fheader, "};\n");
+
+        // write meta
+        fprintf(fheader, "struct atlas_entry_t {\n");
+        // fprintf(fheader, "    const char* filename;\n");
+        // fprintf(fheader, "    XXH64_hash_t filename;\n");
+        fprintf(fheader, "    XXH32_hash_t filename;\n");
+        fprintf(fheader, "    float u0;\n");
+        fprintf(fheader, "    float v0;\n");
+        fprintf(fheader, "    float u1;\n");
+        fprintf(fheader, "    float v1;\n");
+        fprintf(fheader, "};\n");
+        fprintf(fheader, "atlas_entry_t atlas_entries[] = {\n");
+
+        float ow = (float)output_width;
+        float oh = (float)output_height;
+
+        int c = sb_count(image_entries);
+        for (int i = 0; i < c; ++i)
+        {
+            stbrp_rect& image_rect = image_rects[i];
+            image_entry_t& image_entry = image_entries[image_rect.id];
+            float u0 = (float)image_rect.x / ow;
+            float v0 = (float)(image_rect.y) / oh;
+            float u1 = (float)(image_rect.x + image_rect.w) / ow;
+            float v1 = (float)(image_rect.y + image_rect.h) / oh;
+            // fprintf(fheader, "  { \"%s\", %f, %f, %f, %f },\n", image_entry.filename, u0, v0, u1, v1);
+            fprintf(fheader, "  { 0x%x, %f, %f, %f, %f }, // %s\n", XXH32str(image_entry.filename), u0, v0, u1, v1, image_entry.filename);
+        }
+        fprintf(fheader, "  { 0x0, 0.0f, 0.0f, 1.0f, 1.0f }, // full image\n");
+
+        fprintf(fheader, "};\n");
+
+        fclose(fheader);
+
+
+    } else {
+        printf("Fail!\n");
+    }
+    return r != 0;
+}
+
 void t_list_images()
 {
     int c = sb_count(image_entries);
@@ -234,15 +317,16 @@ int main(int argc, char *argv[])
 
     const char* input_folder_path = 0x0;
     const char* ouput_file_path = 0x0;
+    bool write_header = false;
 
-    while ((c = parg_getopt(&ps, argc, argv, "s:i:vo:vh")) != -1) {
+    while ((c = parg_getopt(&ps, argc, argv, "h:s:i:vo:v?")) != -1) {
         switch (c) {
         case 1:
             printf("nonoption '%s'\n", ps.optarg);
             break;
-        case 'h':
+        case '?':
 show_help_and_exit:
-            printf("Usage: qred_tp [-h] [-s size] -i <input-folder> -o <output-file-path>\n");
+            printf("Usage: qred_tp [-?] [-s size] -i <input-folder> [-o <output-image-file>] [-h <output-header-file>]\n");
             return EXIT_SUCCESS;
             break;
         case 'i':
@@ -250,6 +334,10 @@ show_help_and_exit:
             break;
         case 'o':
             ouput_file_path = ps.optarg;
+            break;
+        case 'h':
+            ouput_file_path = ps.optarg;
+            write_header = true;
             break;
         case 's':
             output_width = output_height = atoi(ps.optarg);
@@ -290,8 +378,13 @@ show_help_and_exit:
 
     generate_atlas_image();
 
-    write_atlas_image_to_disk(ouput_file_path);
-    write_atlas_meta_to_disk("meta.txt");
+    if (write_header) {
+        write_atlas_to_header(ouput_file_path);
+    } else {
+        write_atlas_image_to_disk(ouput_file_path);
+        write_atlas_meta_to_disk("meta.txt");
+    }
+
 
     return 0;
 }

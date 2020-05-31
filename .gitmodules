@@ -1,3 +1,6 @@
 [submodule "third-party/stb"]
 	path = third-party/stb
 	url = https://github.com/nothings/stb.git
+[submodule "third-party/xxHash"]
+	path = third-party/xxHash
+	url = https://github.com/Cyan4973/xxHash.git
