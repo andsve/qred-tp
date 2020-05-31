@@ -25,11 +25,12 @@ solution "qred_tp"
   project "qred_tp"
     language "C"
     files {
-      "src/main.cpp"
+      "src/parg.c",
+      "src/main.cpp",
     }
 
     includedirs {
-      -- "third-party/sokol/",
+      "third-party/stb/",
       -- "third-party/sokol/util",
       -- "third-party/LuaJIT/src/",
       -- "third-party/Handmade-Math/",
