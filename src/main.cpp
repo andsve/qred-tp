@@ -25,6 +25,7 @@ struct image_entry_t
 {
     char filepath[4096];
     char filename[4096];
+    char name[4096];
     int width;
     int height;
     int channels;
@@ -39,6 +40,18 @@ static int output_data_compressed_size = 0;
 
 static image_entry_t* image_entries = NULL;
 static stbrp_rect* image_rects = NULL;
+
+void remove_file_ending(char* filename)
+{
+    int l = strlen(filename);
+    for (int i = l-1; i >= 0; --i)
+    {
+        if (filename[i] == '.') {
+            filename[i] = '\0';
+            break;
+        }
+    }
+}
 
 bool find_files(const char* dir_path)
 {
@@ -74,6 +87,9 @@ bool find_files(const char* dir_path)
             image_entry_t image_entry;
             strcpy(image_entry.filepath, filename_qfd);
             strcpy(image_entry.filename, dp->d_name);
+            strcpy(image_entry.name, dp->d_name);
+
+            remove_file_ending(image_entry.name);
 
             // load image
             int n;
@@ -189,7 +205,7 @@ bool write_atlas_meta_to_disk(const char* output_filepath)
         float v0 = (float)(output_height - image_rect.y) / oh;
         float u1 = (float)(image_rect.x + image_rect.w) / ow;
         float v1 = (float)(output_height - image_rect.y - image_rect.h) / oh;
-        fprintf(fmeta, "%s: %f %f %f %f\n", image_entry.filename, u0, v0, u1, v1);
+        fprintf(fmeta, "%s: %f %f %f %f\n", image_entry.name, u0, v0, u1, v1);
     }
 
 // meta_close_and_exit:
@@ -240,7 +256,7 @@ bool write_atlas_to_header(const char* output_filepath)
         fprintf(fheader, "#pragma once\n");
 
         // write png data blob
-        fprintf(fheader, "const char atlas_image_data[] = {\n");
+        fprintf(fheader, "static const unsigned char atlas_image_data[%d] = {\n", output_data_compressed_size);
         for (int i = 0; i < output_data_compressed_size; ++i)
         {
             fprintf(fheader, "0x%02x%s%s", output_data_compressed[i], i != output_data_compressed_size-1 ? "," : "", i % 16 == 15 ? "\n" : " ");
@@ -257,12 +273,12 @@ bool write_atlas_to_header(const char* output_filepath)
         fprintf(fheader, "    float u1;\n");
         fprintf(fheader, "    float v1;\n");
         fprintf(fheader, "};\n");
-        fprintf(fheader, "atlas_entry_t atlas_entries[] = {\n");
+        int c = sb_count(image_entries);
+        fprintf(fheader, "static const atlas_entry_t atlas_entries[%d] = {\n", c+1);
 
         float ow = (float)output_width;
         float oh = (float)output_height;
 
-        int c = sb_count(image_entries);
         for (int i = 0; i < c; ++i)
         {
             stbrp_rect& image_rect = image_rects[i];
@@ -272,7 +288,7 @@ bool write_atlas_to_header(const char* output_filepath)
             float u1 = (float)(image_rect.x + image_rect.w) / ow;
             float v1 = (float)(image_rect.y + image_rect.h) / oh;
             // fprintf(fheader, "  { \"%s\", %f, %f, %f, %f },\n", image_entry.filename, u0, v0, u1, v1);
-            fprintf(fheader, "  { 0x%x, %f, %f, %f, %f }, // %s\n", XXH32str(image_entry.filename), u0, v0, u1, v1, image_entry.filename);
+            fprintf(fheader, "  { 0x%x, %f, %f, %f, %f }, // %s\n", XXH32str(image_entry.name), u0, v0, u1, v1, image_entry.filename);
         }
         fprintf(fheader, "  { 0x0, 0.0f, 0.0f, 1.0f, 1.0f }, // full image\n");
 

@@ -37,7 +37,7 @@ solution "qred_tp"
       -- "third-party/Handmade-Math/",
     }
 
-    links { }
+    links { "-static" }
 
     if os.get() == "windows" then
       -- nop
