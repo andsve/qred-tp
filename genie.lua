@@ -46,7 +46,6 @@ solution "qred_tp"
         "-Wall",
         "-Wno-unknown-pragmas",
         "-Wno-unused-variable",
-        "-fno-threadsafe-statics"
       }
 
       links { "-static" }
