@@ -44,7 +44,6 @@ solution "qred_tp"
 
       buildoptions {
         "-Wall",
-        "-std=c++11",
         "-Wno-unknown-pragmas",
         "-Wno-unused-variable",
         "-fno-threadsafe-statics"
@@ -57,7 +56,6 @@ solution "qred_tp"
 
       buildoptions { "-Wall",
                      "-Werror",
-                     "-Wno-invalid-offsetof",
                      "-fobjc-arc",
                      "-fobjc-arc",
                      "-stdlib=libc++",
@@ -68,7 +66,6 @@ solution "qred_tp"
 
       buildoptions { "-Wall",
                      "-Werror",
-                     "-Wno-invalid-offsetof",
                    }
       linkoptions {
         "-lstdc++",
