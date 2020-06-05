@@ -37,7 +37,6 @@ solution "qred_tp"
       -- "third-party/Handmade-Math/",
     }
 
-    links { "-static" }
 
     if os.get() == "windows" then
       -- nop
@@ -50,6 +49,8 @@ solution "qred_tp"
         "-Wno-unused-variable",
         "-fno-threadsafe-statics"
       }
+
+      links { "-static" }
 
     elseif (os.get() == "macosx") then
       defines { "QRED_PLATFORM_MACOS" }
