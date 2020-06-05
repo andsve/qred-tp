@@ -48,7 +48,7 @@ solution "qred_tp"
         "-Wno-unused-variable",
       }
 
-      links { "-static" }
+      linkoptions { "-static" }
 
     elseif (os.get() == "macosx") then
       defines { "QRED_PLATFORM_MACOS" }
