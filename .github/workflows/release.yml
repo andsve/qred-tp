@@ -59,15 +59,15 @@ jobs:
           $ErrorView = 'NormalView'
           bash ./quick-build.sh
       - name: Upload Release Asset (Windows)
-          id: upload-release-asset-windows
-          uses: actions/upload-release-asset@v1
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          with:
-            upload_url: ${{ needs.create-release.outputs.upload_url }}
-            asset_path: bin/qred_tp_windows.exe
-            asset_name: qred_tp_windows.exe
-            asset_content_type: application/octet-stream
+        id: upload-release-asset-windows
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: bin/qred_tp_windows.exe
+          asset_name: qred_tp_windows.exe
+          asset_content_type: application/octet-stream
   build-macos:
     name: Create Release (OSX)
     runs-on: macos-latest
@@ -79,13 +79,13 @@ jobs:
       - name: Building...
         run: ./quick-build.sh
       - name: Upload Release Asset (OSX)
-          id: upload-release-asset-macos
-          uses: actions/upload-release-asset@v1
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          with:
-            upload_url: ${{ needs.create-release.outputs.upload_url }}
-            asset_path: bin/qred_tp
-            asset_name: qred_tp_macos.exe
-            asset_content_type: application/octet-stream
+        id: upload-release-asset-macos
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: bin/qred_tp
+          asset_name: qred_tp_macos.exe
+          asset_content_type: application/octet-stream
 
