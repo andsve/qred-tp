@@ -8,6 +8,8 @@ name: Create Release
 
 jobs:
   create-relase:
+    name: Create Release Asset
+    runs-on: ubuntu-latest
     steps:
       - name: Create Release
         id: create_release
