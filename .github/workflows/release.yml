@@ -8,7 +8,7 @@ name: Create Release
 
 jobs:
   create-release:
-    name: Create Release Asset
+    name: Create Release
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -42,7 +42,50 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: bin/qred_tp
-          asset_name: qred_tp_ubuntu.zip
-          asset_content_type: application/zip
+          asset_name: qred_tp_ubuntu
+          asset_content_type: application/octet-stream
+  build-windows:
+    name: Create Release (Windows)
+    runs-on: windows-latest
+    needs: create-release
+    steps:
+    - uses: actions/checkout@v1
+    - name: Checkout submodules
+      run: git submodule init && git submodule update --init --recursive
+    - name: Building...
+      run: |
+        $ErrorView = 'NormalView'
+        bash ./quick-build.sh
+    - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: bin/qred_tp_windows.exe
+          asset_name: qred_tp_windows.exe
+          asset_content_type: application/octet-stream
+  build-macos:
+    name: Create Release (OSX)
+    runs-on: macos-latest
+    needs: create-release
+    steps:
+    - uses: actions/checkout@v1
+    - name: Checkout submodules
+      run: git submodule init && git submodule update --init --recursive
+    - name: Building...
+      run: ./quick-build.sh
+    - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: bin/qred_tp
+          asset_name: qred_tp_macos.exe
+          asset_content_type: application/octet-stream
+
