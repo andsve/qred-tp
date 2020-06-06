@@ -65,7 +65,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: bin/qred_tp_windows.exe
+          asset_path: bin/qred_tp.exe
           asset_name: qred_tp_windows.exe
           asset_content_type: application/octet-stream
   build-macos:
@@ -86,6 +86,6 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: bin/qred_tp
-          asset_name: qred_tp_macos.exe
+          asset_name: qred_tp_macos
           asset_content_type: application/octet-stream
 
