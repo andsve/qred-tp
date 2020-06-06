@@ -7,7 +7,7 @@ on:
 name: Create Release
 
 jobs:
-  create-relase:
+  create-release:
     name: Create Release Asset
     runs-on: ubuntu-latest
     steps:
