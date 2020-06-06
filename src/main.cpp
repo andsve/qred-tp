@@ -31,6 +31,12 @@ enum pack_entry_type
     FONT
 };
 
+struct nineslice_t
+{
+    int sizes[4];
+    float uvs[4];
+};
+
 struct pack_entry_t
 {
     pack_entry_type type;
@@ -40,6 +46,7 @@ struct pack_entry_t
     int width;
     int height;
     int channels;
+    nineslice_t nineslice;
     uint8_t* data;
     stbtt_packedchar* packed_char_data;
 };
@@ -85,6 +92,26 @@ const char* get_file_ending(const char* filename)
     return filename;
 }
 
+uint8_t fill_nine_slice_sizes(const char* nineslice_path, int* data)
+{
+    FILE* f = fopen(nineslice_path, "r");
+    if (f == 0)
+    {
+        return 0;
+    }
+
+    int next = 0;
+    char line[256];
+    while(fgets(line, 256, f) && next < 4)
+    {
+        data[next++] = atoi(line);
+    }
+
+    fclose(f);
+
+    return 1;
+}
+
 bool find_files(const char* dir_path)
 {
     struct dirent *dp;
@@ -116,7 +143,7 @@ bool find_files(const char* dir_path)
         else
         {
             // new entry
-            pack_entry_t pack_entry;
+            pack_entry_t pack_entry = {};
             strcpy(pack_entry.filepath, filename_qfd);
             strcpy(pack_entry.filename, dp->d_name);
             strcpy(pack_entry.name, dp->d_name);
@@ -132,6 +159,20 @@ bool find_files(const char* dir_path)
                 // load image
                 int n;
                 pack_entry.data = stbi_load(filename_qfd, &pack_entry.width, &pack_entry.height, &n, 4);
+
+                const char* nineslice_ext = ".9slice";
+
+                char nineslice_path[4096 + sizeof(nineslice_ext)];
+                sprintf(nineslice_path, "%s.9slice", filename_qfd);
+
+                memset(&stbuf, 0, sizeof(stbuf));
+                if (stat(nineslice_path, &stbuf) != -1 && (stbuf.st_mode & S_IFMT) != S_IFDIR)
+                {
+                    if (fill_nine_slice_sizes(nineslice_path, pack_entry.nineslice.sizes) == 0)
+                    {
+                        printf("Unable to load nineslice meta data from %s\n", nineslice_path);
+                    }
+                }
             }
             else if (strcmp(file_ending, "ttf") == 0)
             {
@@ -394,6 +435,14 @@ bool write_atlas_to_header(const char* output_filepath)
         fprintf(fheader, "    float v0;\n");
         fprintf(fheader, "    float u1;\n");
         fprintf(fheader, "    float v1;\n");
+        fprintf(fheader, "    int   ns0;\n");
+        fprintf(fheader, "    int   ns1;\n");
+        fprintf(fheader, "    int   ns2;\n");
+        fprintf(fheader, "    int   ns3;\n");
+        fprintf(fheader, "    float ns0_d;\n");
+        fprintf(fheader, "    float ns1_d;\n");
+        fprintf(fheader, "    float ns2_d;\n");
+        fprintf(fheader, "    float ns3_d;\n");
         fprintf(fheader, "};\n");
 
         int c = sb_count(image_entries);
@@ -430,10 +479,27 @@ bool write_atlas_to_header(const char* output_filepath)
             float u1 = (float)(image_rect.x + image_rect.w) / ow;
             float v1 = (float)(image_rect.y + image_rect.h) / oh;
 
+            // Nineslice sizes (in pixels)
+            int ns0 = pack_entry.nineslice.sizes[0];
+            int ns1 = pack_entry.nineslice.sizes[1];
+            int ns2 = pack_entry.nineslice.sizes[2];
+            int ns3 = pack_entry.nineslice.sizes[3];
+
+            // Nineslice uv deltas (top, bottom, left, right)
+            float ns0_d = ns0 / oh;
+            float ns1_d = ns1 / oh;
+            float ns2_d = ns2 / ow;
+            float ns3_d = ns3 / ow;
+
             // fprintf(fheader, "  { \"%s\", %f, %f, %f, %f },\n", pack_entry.filename, u0, v0, u1, v1);
-            fprintf(fheader, "  { 0x%x, %f, %f, %f, %f }, // %s\n", XXH32str(pack_entry.name), u0, v0, u1, v1, pack_entry.filename);
+            fprintf(fheader, "  { 0x%x, %f, %f, %f, %f, %d, %d, %d, %d, %f, %f, %f, %f }, // %s\n",
+                XXH32str(pack_entry.name),
+                u0,       v0,    u1,    v1,
+                ns0,     ns1,   ns2,   ns3,
+                ns0_d, ns1_d, ns2_d, ns3_d,
+                pack_entry.filename);
         }
-        fprintf(fheader, "  { 0x0, 0.0f, 0.0f, 1.0f, 1.0f }, // full image\n");
+        fprintf(fheader, "  { 0x0, 0.0f, 0.0f, 1.0f, 1.0f, 0, 0, 0, 0, 0.0f, 0.0f, 0.0f, 0.0f }, // full image\n");
 
         fprintf(fheader, "};\n");
 
