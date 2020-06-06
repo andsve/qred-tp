@@ -23,6 +23,10 @@
 
 #include "parg.h"
 
+static const char* QRED_VERSION =
+#include "../VERSION"
+;
+
 // #include "../asd.h"
 
 enum pack_entry_type
@@ -660,6 +664,10 @@ show_help_and_exit:
             break;
         case 's':
             output_width = output_height = atoi(ps.optarg);
+            break;
+        case 'v':
+            printf("qred v%s\n", QRED_VERSION);
+            return EXIT_SUCCESS;
             break;
         default:
             printf("error: unhandled option -%c\n", c);
