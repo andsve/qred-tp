@@ -50,9 +50,21 @@ struct pack_entry_t
     int width;
     int height;
     int channels;
-    nineslice_t nineslice;
     uint8_t* data;
-    stbtt_packedchar* packed_char_data;
+
+    union
+    {
+        struct
+        {
+            int   nineslice_sizes[4];
+            float nineslice_uvs[4];
+        } image;
+        struct
+        {
+            int line_height;
+            stbtt_packedchar* packed_char_data;
+        } font;
+    };
 };
 
 static int font_width = 256;
@@ -172,7 +184,7 @@ bool find_files(const char* dir_path)
                 memset(&stbuf, 0, sizeof(stbuf));
                 if (stat(nineslice_path, &stbuf) != -1 && (stbuf.st_mode & S_IFMT) != S_IFDIR)
                 {
-                    if (fill_nine_slice_sizes(nineslice_path, pack_entry.nineslice.sizes) == 0)
+                    if (fill_nine_slice_sizes(nineslice_path, pack_entry.image.nineslice_sizes) == 0)
                     {
                         printf("Unable to load nineslice meta data from %s\n", nineslice_path);
                     }
@@ -188,14 +200,6 @@ bool find_files(const char* dir_path)
                 fread(ttf_data, 1, stbuf.st_size, fttf);
                 fclose(fttf);
 
-                // stbtt_fontinfo fontinfo;
-                // int r = stbtt_InitFont(&fontinfo, ttf_data, stbtt_GetFontOffsetForIndex(ttf_data, 0));
-                // if (r != 0) {
-                //     printf("Could not init font!\n");
-                //     exit(1);
-                // }
-
-
                 // init packing
                 stbtt_pack_context pack_context;
                 uint8_t* font_pixels = (uint8_t*)malloc(font_width*font_height);
@@ -206,20 +210,35 @@ bool find_files(const char* dir_path)
                 }
 
                 // stbtt_packedchar packed_char_data[font_range];
-                pack_entry.packed_char_data = (stbtt_packedchar*)malloc(font_range * sizeof(stbtt_packedchar));
-                r = stbtt_PackFontRange(&pack_context, ttf_data, stbtt_GetFontOffsetForIndex(ttf_data, 0), font_size, font_range_start, font_range, pack_entry.packed_char_data);
+                pack_entry.font.packed_char_data = (stbtt_packedchar*)malloc(font_range * sizeof(stbtt_packedchar));
+                r = stbtt_PackFontRange(&pack_context, ttf_data, stbtt_GetFontOffsetForIndex(ttf_data, 0), font_size, font_range_start, font_range, pack_entry.font.packed_char_data);
                 if (r != 1) {
                     printf("Error while calling stbtt_PackFontRange!\n");
                     exit(1);
                 }
 
+                stbtt_fontinfo font_info;
+                r = stbtt_InitFont(&font_info, ttf_data, stbtt_GetFontOffsetForIndex(ttf_data, 0));
+                if (r != 1) {
+                    printf("Error while calling stbtt_InitFont!\n");
+                    exit(1);
+                }
+
+                int font_ascent, font_descent, font_line_gap;
+                stbtt_GetFontVMetrics(&font_info, &font_ascent, &font_descent, &font_line_gap);
+
                 // for (int i = 0; i < font_range; ++i)
                 // {
                 //     printf("%d, %hu %hu %hu %hu\n", i, packed_char_data[i].x0, packed_char_data[i].y0, packed_char_data[i].x1, packed_char_data[i].y1);
                 // }
+
+                float font_scale = font_size / ((float)(font_ascent - font_descent));
+                float font_line_height = (font_ascent - font_descent + font_line_gap) * font_scale;
+
                 pack_entry.data = font_pixels;
                 pack_entry.width = font_width;
                 pack_entry.height = font_height;
+                pack_entry.font.line_height = font_line_height;
 
                 // cleanup
                 stbtt_PackEnd(&pack_context);
@@ -484,10 +503,10 @@ bool write_atlas_to_header(const char* output_filepath)
             float v1 = (float)(image_rect.y + image_rect.h) / oh;
 
             // Nineslice sizes (in pixels)
-            int ns0 = pack_entry.nineslice.sizes[0];
-            int ns1 = pack_entry.nineslice.sizes[1];
-            int ns2 = pack_entry.nineslice.sizes[2];
-            int ns3 = pack_entry.nineslice.sizes[3];
+            int ns0 = pack_entry.image.nineslice_sizes[0];
+            int ns1 = pack_entry.image.nineslice_sizes[1];
+            int ns2 = pack_entry.image.nineslice_sizes[2];
+            int ns3 = pack_entry.image.nineslice_sizes[3];
 
             // Nineslice uv deltas (top, bottom, left, right)
             float ns0_d = ns0 / oh;
@@ -533,6 +552,7 @@ bool write_atlas_to_header(const char* output_filepath)
 
             fprintf(fheader, "struct font_entry_t {\n");
             fprintf(fheader, "    XXH32_hash_t font_name;\n");
+            fprintf(fheader, "    uint32_t line_height;\n");
             fprintf(fheader, "    uint32_t cp_start;\n");
             fprintf(fheader, "    uint32_t cp_count;\n");
             fprintf(fheader, "    font_char_entry_t font_chars[%d];\n", font_range);
@@ -560,10 +580,12 @@ bool write_atlas_to_header(const char* output_filepath)
                 // float img_u1 = (float)(image_rect.x + image_rect.w) / ow;
                 // float img_v1 = (float)(image_rect.y + image_rect.h) / oh;
 
-                fprintf(fheader, "  { 0x%x, %d, %d, { // %s\n", XXH32str(pack_entry.name), font_range_start, font_range, pack_entry.filename);
+                // pack_entry.font.line_height
+
+                fprintf(fheader, "  { 0x%x, %d, %d, %d, { // %s\n", XXH32str(pack_entry.name), pack_entry.font.line_height, font_range_start, font_range, pack_entry.filename);
                 for (int j = 0; j < font_range; ++j)
                 {
-                    stbtt_packedchar& packedchar = pack_entry.packed_char_data[j];
+                    stbtt_packedchar& packedchar = pack_entry.font.packed_char_data[j];
 
                     // float u0 = img_u0;// + packedchar.x0;
                     // float v0 = img_v0;// + packedchar.y0;
